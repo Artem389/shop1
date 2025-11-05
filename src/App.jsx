@@ -3,31 +3,33 @@
 // import viteLogo from '/vite.svg'
 // import './App.css'
 
-import ProductCard from './ProductCard';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { CartProvider } from './context/CartContext';
+import { ThemeProvider } from './context/ThemeContext';
+import Layout from './components/Layout';
+import Home from './pages/Home';
+import Cart from './pages/Cart';
+import Dashboard from './pages/Dashboard';
+import Login from './pages/Login';
 
 function App() {
   return (
-    <>
-      <h1 style={{ textAlign: 'center' }}>Продуктовый магазин</h1>
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
-        <ProductCard
-          name="Яблоки"
-          price={99}
-          image=""
-        />
-        <ProductCard
-          name="Молоко"
-          price={75}
-          image="h"
-        />
-        <ProductCard
-          name="Хлеб"
-          price={45}
-          image=""
-        />
-      </div>
-    </>
+    <ThemeProvider>
+      <CartProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Home />} />
+              <Route path="cart" element={<Cart />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="login" element={<Login />} />
+            </Route>
+          </Routes>
+        </Router>
+      </CartProvider>
+    </ThemeProvider>
   );
 }
 
 export default App;
+
