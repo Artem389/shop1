@@ -1,0 +1,223 @@
+import { useState, useEffect } from 'react';
+import { getProducts, createProduct, updateProduct, deleteProduct } from '../api/products';
+import { getCategories, createCategory, updateCategory, deleteCategory } from '../api/categories';
+import { getDiscounts, createDiscount, updateDiscount, deleteDiscount } from '../api/discounts';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+export default function AdminPanel() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [discounts, setDiscounts] = useState([]);
+  const [formProduct, setFormProduct] = useState({ discount_id: '', category_id: '', product_name: '', price: '', weight: '', picture_url: '', description: '' });
+  const [formCategory, setFormCategory] = useState({ category_name: '' });
+  const [formDiscount, setFormDiscount] = useState({ discount_name: '', discount_value: '', user_id: '' });
+  const [editingProdId, setEditingProdId] = useState(null);
+  const [editingCatId, setEditingCatId] = useState(null);
+  const [editingDiscId, setEditingDiscId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (user?.role !== 'admin') navigate('/');
+    async function fetchData() {
+      try {
+        const prods = await getProducts();
+        const cats = await getCategories();
+        const discs = await getDiscounts();
+        setProducts(prods);
+        setCategories(cats);
+        setDiscounts(discs);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [user]);
+
+  const handleProductSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingProdId) {
+        const updated = await updateProduct(editingProdId, formProduct);
+        setProducts(prev => prev.map(p => p.id_products === editingProdId ? updated : p));
+      } else {
+        const newProd = await createProduct(formProduct);
+        setProducts([...products, newProd]);
+      }
+      setFormProduct({ discount_id: '', category_id: '', product_name: '', price: '', weight: '', picture_url: '', description: '' });
+      setEditingProdId(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const startEditProduct = (prod) => {
+    setFormProduct({ discount_id: prod.discount_id, category_id: prod.category_id, product_name: prod.product_name, price: prod.price, weight: prod.weight, picture_url: prod.picture_url, description: prod.description });
+    setEditingProdId(prod.id_products);
+  };
+
+  const handleDeleteProduct = async (id) => {
+    if (window.confirm('Удалить?')) {
+      await deleteProduct(id);
+      setProducts(products.filter(p => p.id_products !== id));
+    }
+  };
+
+  // Аналогично для категорий
+  const handleCategorySubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingCatId) {
+        const updated = await updateCategory(editingCatId, formCategory);
+        setCategories(prev => prev.map(c => c.id_category === editingCatId ? updated : c));
+      } else {
+        const newCat = await createCategory(formCategory);
+        setCategories([...categories, newCat]);
+      }
+      setFormCategory({ category_name: '' });
+      setEditingCatId(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const startEditCategory = (cat) => {
+    setFormCategory({ category_name: cat.category_name });
+    setEditingCatId(cat.id_category);
+  };
+
+  const handleDeleteCategory = async (id) => {
+    if (window.confirm('Удалить?')) {
+      await deleteCategory(id);
+      setCategories(categories.filter(c => c.id_category !== id));
+    }
+  };
+
+  // Аналогично для скидок
+  const handleDiscountSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingDiscId) {
+        const updated = await updateDiscount(editingDiscId, formDiscount);
+        setDiscounts(prev => prev.map(d => d.id_discount === editingDiscId ? updated : d));
+      } else {
+        const newDisc = await createDiscount(formDiscount);
+        setDiscounts([...discounts, newDisc]);
+      }
+      setFormDiscount({ discount_name: '', discount_value: '', user_id: '' });
+      setEditingDiscId(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const startEditDiscount = (disc) => {
+    setFormDiscount({ discount_name: disc.discount_name, discount_value: disc.discount_value, user_id: disc.user_id });
+    setEditingDiscId(disc.id_discount);
+  };
+
+  const handleDeleteDiscount = async (id) => {
+    if (window.confirm('Удалить?')) {
+      await deleteDiscount(id);
+      setDiscounts(discounts.filter(d => d.id_discount !== id));
+    }
+  };
+
+  if (loading) return <p>Загрузка...</p>;
+  if (error) return <p>Ошибка: {error}</p>;
+
+  return (
+    <div className="admin-panel">
+      <h1>Панель администратора</h1>
+      <button onClick={logout}>Выход</button>
+
+      <section>
+        <h2>Товары</h2>
+        <form onSubmit={handleProductSubmit}>
+          <select value={formProduct.category_id} onChange={e => setFormProduct({...formProduct, category_id: e.target.value})} required>
+            <option value="">Категория</option>
+            {categories.map(cat => <option key={cat.id_category} value={cat.id_category}>{cat.category_name}</option>)}
+          </select>
+          <select value={formProduct.discount_id} onChange={e => setFormProduct({...formProduct, discount_id: e.target.value})} required>
+            <option value="">Скидка</option>
+            {discounts.map(disc => <option key={disc.id_discount} value={disc.id_discount}>{disc.discount_name}</option>)}
+          </select>
+          <input value={formProduct.product_name} onChange={e => setFormProduct({...formProduct, product_name: e.target.value})} placeholder="Название" required />
+          <input value={formProduct.price} onChange={e => setFormProduct({...formProduct, price: e.target.value})} placeholder="Цена" required />
+          <input value={formProduct.weight} onChange={e => setFormProduct({...formProduct, weight: e.target.value})} placeholder="Вес" required />
+          <input value={formProduct.picture_url} onChange={e => setFormProduct({...formProduct, picture_url: e.target.value})} placeholder="URL картинки" required />
+          <input value={formProduct.description} onChange={e => setFormProduct({...formProduct, description: e.target.value})} placeholder="Описание" required />
+          <button type="submit">{editingProdId ? 'Обновить' : 'Добавить'}</button>
+        </form>
+        <table>
+          <thead><tr><th>Название</th><th>Цена</th><th>Действия</th></tr></thead>
+          <tbody>
+            {products.map(prod => (
+              <tr key={prod.id_products}>
+                <td>{prod.product_name}</td>
+                <td>{prod.price}</td>
+                <td>
+                  <button onClick={() => startEditProduct(prod)}>Редактировать</button>
+                  <button onClick={() => handleDeleteProduct(prod.id_products)}>Удалить</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Категории</h2>
+        <form onSubmit={handleCategorySubmit}>
+          <input value={formCategory.category_name} onChange={e => setFormCategory({...formCategory, category_name: e.target.value})} placeholder="Название категории" required />
+          <button type="submit">{editingCatId ? 'Обновить' : 'Добавить'}</button>
+        </form>
+        <table>
+          <thead><tr><th>Название</th><th>Действия</th></tr></thead>
+          <tbody>
+            {categories.map(cat => (
+              <tr key={cat.id_category}>
+                <td>{cat.category_name}</td>
+                <td>
+                  <button onClick={() => startEditCategory(cat)}>Редактировать</button>
+                  <button onClick={() => handleDeleteCategory(cat.id_category)}>Удалить</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Скидки</h2>
+        <form onSubmit={handleDiscountSubmit}>
+          <input value={formDiscount.discount_name} onChange={e => setFormDiscount({...formDiscount, discount_name: e.target.value})} placeholder="Название скидки" required />
+          <input value={formDiscount.discount_value} onChange={e => setFormDiscount({...formDiscount, discount_value: e.target.value})} placeholder="Значение (%)" required />
+          <input value={formDiscount.user_id} onChange={e => setFormDiscount({...formDiscount, user_id: e.target.value})} placeholder="ID пользователя (для персональной)" />
+          <button type="submit">{editingDiscId ? 'Обновить' : 'Добавить'}</button>
+        </form>
+        <table>
+          <thead><tr><th>Название</th><th>Значение</th><th>Пользователь</th><th>Действия</th></tr></thead>
+          <tbody>
+            {discounts.map(disc => (
+              <tr key={disc.id_discount}>
+                <td>{disc.discount_name}</td>
+                <td>{disc.discount_value}</td>
+                <td>{disc.user_id}</td>
+                <td>
+                  <button onClick={() => startEditDiscount(disc)}>Редактировать</button>
+                  <button onClick={() => handleDeleteDiscount(disc.id_discount)}>Удалить</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  );
+}

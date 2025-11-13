@@ -1,47 +1,39 @@
-import { useNavigate } from 'react-router-dom';
-import { useTheme } from '../context/ThemeContext';
+import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 
-function Login() {
-  const navigate = useNavigate();
-  const { isDark } = useTheme();
+export default function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [isRegister, setIsRegister] = useState(false);
+  const [error, setError] = useState(null);
+  const { signIn, signUp } = useAuth();
 
-  const handleLogin = () => {
-    // В реальном приложении здесь была бы проверка логина/пароля
-    // После успешной аутентификации редирект на дашборд
-    navigate('/dashboard');
-  };
-
-  const loginStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '60vh',
-    padding: '2rem',
-    backgroundColor: isDark ? '#333' : '#fff',
-    color: isDark ? '#fff' : '#000'
-  };
-
-  const buttonStyle = {
-    padding: '1rem 2rem',
-    fontSize: '1.2rem',
-    backgroundColor: isDark ? '#007bff' : '#007bff',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    marginTop: '2rem'
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      if (isRegister) {
+        await signUp(phone, password, email);
+      } else {
+        await signIn(email, password);
+      }
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (
-    <div style={loginStyle}>
-      <h1>Вход в личный кабинет</h1>
-      <p>Для доступа к личному кабинету необходимо авторизоваться</p>
-      <button onClick={handleLogin} style={buttonStyle}>
-        Войти
+    <form onSubmit={handleSubmit}>
+      <h1>{isRegister ? 'Регистрация' : 'Вход'}</h1>
+      {isRegister && <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Телефон" required />}
+      <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required />
+      <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Пароль" required />
+      <button type="submit">{isRegister ? 'Зарегистрироваться' : 'Войти'}</button>
+      <button type="button" onClick={() => setIsRegister(!isRegister)}>
+        {isRegister ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Зарегистрироваться'}
       </button>
-    </div>
+      {error && <p style={{color: 'red'}}>Ошибка: {error}</p>}
+    </form>
   );
 }
-
-export default Login;

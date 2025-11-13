@@ -50,3 +50,26 @@
 .product-card button:hover {
   background: #0056b3;
 } */
+
+/* Ваш оригинальный CSS с :root для light/dark, переменные для цветов и т.д. */
+:root.light {
+  --bg-color: white;
+  --text-color: black;
+}
+
+:root.dark {
+  --bg-color: black;
+  --text-color: white;
+}
+
+.app {
+  background: var(--bg-color);
+  color: var(--text-color);
+}
+
+/* Стили для product-card, aside и т.д. как в вашем проекте */
+aside.categories-filter {
+  width: 200px;
+  float: left;
+  /* ... */
+}

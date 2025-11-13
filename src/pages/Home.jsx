@@ -1,24 +1,77 @@
-import ProductCard from '../components/ProductCard';
+import { useState, useEffect } from 'react';
+import { getProducts } from '../api/products';
+import { getCategories } from '../api/categories';
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
-const products = [
-  { name: "Яблоки", price: 99, image: "https://png.pngtree.com/png-vector/20250127/ourmid/pngtree-apple-on-white-background-for-clean-and-minimal-design-png-image_15351068.png" },
-  { name: "Молоко", price: 75, image: "https://udoba.org/sites/default/files/h5p/content/50758/images/file-6358c44c5f8b7.png" },
-  { name: "Хлеб", price: 45, image: "https://www.pngmart.com/files/22/Wheat-bread-PNG-Free-Download.png" },
-  { name: "Сыр", price: 200, image: "https://iili.io/H8Ehebp.png" },
-  { name: "Кофе", price: 350, image: "https://www.pngall.com/wp-content/uploads/13/Nescafe-PNG-Cutout.png" }
-];
+export default function Home() {
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { addItem } = useCart();
+  const { user } = useAuth();
 
-function Home() {
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const prods = await getProducts();
+        const cats = await getCategories();
+        setProducts(prods);
+        setCategories(cats);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  const handleCategoryChange = (catId) => {
+    setSelectedCategories(prev => 
+      prev.includes(catId) ? prev.filter(id => id !== catId) : [...prev, catId]
+    );
+  };
+
+  const filteredProducts = products.filter(prod => 
+    selectedCategories.length === 0 || selectedCategories.includes(prod.category_id)
+  );
+
+  if (loading) return <p>Загрузка...</p>;
+  if (error) return <p style={{color: 'red'}}>Ошибка: {error}</p>;
+
   return (
-    <div style={{ padding: '2rem' }}>
-      <h1 style={{ textAlign: 'center' }}>Каталог товаров</h1>
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
-        {products.map(product => (
-          <ProductCard key={product.name} {...product} />
+    <div className="home">
+      <aside className="categories-filter">
+        <h3>Категории</h3>
+        {categories.map(cat => (
+          <label key={cat.id_category}>
+            <input 
+              type="checkbox" 
+              checked={selectedCategories.includes(cat.id_category)}
+              onChange={() => handleCategoryChange(cat.id_category)}
+            />
+            {cat.category_name}
+          </label>
         ))}
-      </div>
+      </aside>
+      <main>
+        <h1>Каталог товаров</h1>
+        {filteredProducts.map(prod => (
+          <div key={prod.id_products} className="product-card">
+            <img src={prod.picture_url} alt={prod.product_name} />
+            <h2>{prod.product_name}</h2>
+            <p>{prod.description}</p>
+            <p>Цена: {prod.price} руб. (Скидка: {prod.discount_value}%)</p>
+            <p>Вес: {prod.weight} г</p>
+            <button onClick={() => addItem({ id: prod.id_products, ...prod })}>
+              Добавить в корзину
+            </button>
+          </div>
+        ))}
+      </main>
     </div>
   );
 }
-
-export default Home;
