@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { getOrders } from '../api/orders';
 
 export default function UserProfile() {
-  const { user, logout } = useAuth();
+  const { user, logout, personalDiscount } = useAuth();
   const { loadCart, items, error, loading } = useCart();
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
@@ -35,11 +35,12 @@ export default function UserProfile() {
         items: []
       };
     }
-    const disc = item.discount_value || 0;
+    const productDisc = item.discount_value || 0;
+    const totalDisc = productDisc + personalDiscount;
     acc[item.id_orders].items.push({
       product_name: item.product_name,
       quantity: item.quantity,
-      price: item.price * (1 - disc / 100)
+      price: item.price * (1 - totalDisc / 100)
     });
     return acc;
   }, {});

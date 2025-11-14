@@ -11,7 +11,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { addItem } = useCart();
-  const { user } = useAuth();
+  const { user, personalDiscount } = useAuth();
 
   useEffect(() => {
     async function fetchData() {
@@ -59,18 +59,23 @@ export default function Home() {
       </aside>
       <main>
         <h1>Каталог товаров</h1>
-        {filteredProducts.map(prod => (
-          <div key={prod.id_products} className="product-card">
-            <img src={prod.picture_url} alt={prod.product_name} />
-            <h2>{prod.product_name}</h2>
-            <p>{prod.description}</p>
-            <p>Цена: {prod.price} руб. (Скидка: {prod.discount_value}%)</p>
-            <p>Вес: {prod.weight} г</p>
-            <button onClick={() => addItem({ id: prod.id_products, ...prod })}>
-              Добавить в корзину
-            </button>
-          </div>
-        ))}
+        {filteredProducts.map(prod => {
+          const productDisc = prod.discount_value || 0;
+          const totalDisc = user ? productDisc + personalDiscount : productDisc;
+          const discountedPrice = prod.price * (1 - totalDisc / 100);
+          return (
+            <div key={prod.id_products} className="product-card">
+              <img src={prod.picture_url} alt={prod.product_name} />
+              <h2>{prod.product_name}</h2>
+              <p>{prod.description}</p>
+              <p>Цена: {discountedPrice} руб. (Скидка: {totalDisc}%)</p>
+              <p>Вес: {prod.weight} г</p>
+              <button onClick={() => addItem({ id: prod.id_products, ...prod })}>
+                Добавить в корзину
+              </button>
+            </div>
+          );
+        })}
       </main>
     </div>
   );

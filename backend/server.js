@@ -20,16 +20,23 @@ const pool = new Pool({
   port: process.env.PG_PORT,
 });
 
-// Функция для обновления total_amount с учетом продуктовой скидки
+// Функция для обновления total_amount с учетом продуктовой + персональной скидки (сумма %)
 async function updateOrderTotal(orders_id) {
   try {
+    const userRes = await pool.query('SELECT user_id FROM orders WHERE ID_orders = $1', [orders_id]);
+    const user_id = userRes.rows[0]?.user_id;
+    if (!user_id) return;
+
+    const personalRes = await pool.query('SELECT SUM(discount_value) as personal_sum FROM discounts WHERE user_id = $1', [user_id]);
+    const personal_sum = personalRes.rows[0].personal_sum || 0;
+
     const totalRes = await pool.query(`
-      SELECT SUM(c.quantity * p.price * (1 - COALESCE(d.discount_value, 0) / 100.0)) AS total
+      SELECT SUM(c.quantity * p.price * (1 - (COALESCE(d.discount_value, 0) + $1) / 100.0)) AS total
       FROM cart c
       JOIN products p ON c.products_id = p.ID_products
       LEFT JOIN discounts d ON p.discount_id = d.ID_discount
-      WHERE c.orders_id = $1
-    `, [orders_id]);
+      WHERE c.orders_id = $2
+    `, [personal_sum, orders_id]);
 
     const total = totalRes.rows[0].total || 0;
     await pool.query('UPDATE orders SET total_amount = $1 WHERE ID_orders = $2', [total, orders_id]);
@@ -245,6 +252,17 @@ app.delete('/api/discounts/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Error deleting discount: ' + err.message });
+  }
+});
+
+// Get user personal discount sum
+app.get('/api/discounts/user/:user_id', async (req, res) => {
+  const { user_id } = req.params;
+  try {
+    const result = await pool.query('SELECT SUM(discount_value) as personal_sum FROM discounts WHERE user_id = $1', [user_id]);
+    res.json({ personal_sum: result.rows[0].personal_sum || 0 });
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching user discount' });
   }
 });
 

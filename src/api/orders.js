@@ -51,3 +51,9 @@ export const addToCart = async (orders_id, product_id, quantity) => {
   if (!res.ok) throw new Error('Error adding to cart');
   return res.json();
 };
+
+export const getUserDiscount = async (user_id) => {
+  const res = await fetch(`${API_URL}/discounts/user/${user_id}`);
+  if (!res.ok) throw new Error('Error fetching user discount');
+  return res.json();
+};
