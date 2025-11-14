@@ -7,6 +7,7 @@ import Cart from './pages/Cart';
 import Login from './pages/Login';
 import AdminPanel from './pages/AdminPanel';
 import UserProfile from './pages/UserProfile';
+import Checkout from './pages/Checkout'; // Новый
 import { useContext } from 'react';
 import { ThemeContext } from './context/ThemeContext';
 import { useAuth } from './context/AuthContext';
@@ -32,6 +33,11 @@ function AppContent() {
         <Route path="/cart" element={
           <ProtectedRoute>
             <Cart />
+          </ProtectedRoute>
+        } />
+        <Route path="/checkout" element={
+          <ProtectedRoute>
+            <Checkout />
           </ProtectedRoute>
         } />
         <Route path="/profile" element={

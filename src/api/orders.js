@@ -10,6 +10,16 @@ export const createOrder = async (user_id, items) => {
   return res.json();
 };
 
+export const updateOrder = async (order_id, address, payment_type) => {
+  const res = await fetch(`${API_URL}/orders/${order_id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address, payment_type }),
+  });
+  if (!res.ok) throw new Error('Error updating order');
+  return res.json();
+};
+
 export const getOrders = async (user_id) => {
   const res = await fetch(`${API_URL}/orders/${user_id}`);
   if (!res.ok) throw new Error('Error fetching orders');

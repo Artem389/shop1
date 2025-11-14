@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export default function Cart() {
   const { items, loading, error, loadCart, removeItem } = useCart();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (user) loadCart();
@@ -19,6 +21,10 @@ export default function Cart() {
     return sum + discountedPrice * item.quantity;
   }, 0);
 
+  const handleCheckout = () => {
+    navigate('/checkout');
+  };
+
   return (
     <div className="cart">
       <h1>Корзина</h1>
@@ -31,6 +37,7 @@ export default function Cart() {
         </div>
       ))}
       <p>Итого: {total} руб.</p>
+      <button onClick={handleCheckout}>Оформить заказ</button>
     </div>
   );
 }

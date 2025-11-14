@@ -226,14 +226,14 @@ app.delete('/api/discounts/:id', async (req, res) => {
 
 // Orders/Cart (для корзины пользователя)
 app.post('/api/orders', async (req, res) => {
-  const { user_id, items } = req.body; // items: [{product_id, quantity}]
+  const { user_id, items, address, payment_type } = req.body; // Добавил address и payment_type опционально
   try {
     // Получить последний order или создать новый
     let order = await pool.query('SELECT * FROM orders WHERE user_id = $1 ORDER BY orders_date DESC LIMIT 1', [user_id]);
     if (order.rows.length === 0) {
       order = await pool.query(
-        'INSERT INTO orders (user_id, orders_date, total_amount) VALUES ($1, NOW(), 0) RETURNING *',
-        [user_id]
+        'INSERT INTO orders (user_id, orders_date, total_amount, address, payment_type) VALUES ($1, NOW(), 0, $2, $3) RETURNING *',
+        [user_id, address || null, payment_type || null]
       );
     } else {
       order = { rows: [order.rows[0]] };
@@ -266,15 +266,34 @@ app.post('/api/orders', async (req, res) => {
   }
 });
 
+// Новый PUT для обновления заказа (оформление)
+app.put('/api/orders/:id', async (req, res) => {
+  const { id } = req.params;
+  const { address, payment_type } = req.body;
+  try {
+    const orderCheck = await pool.query('SELECT * FROM orders WHERE ID_orders = $1', [id]);
+    if (orderCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    const order = await pool.query('UPDATE orders SET address = $1, payment_type = $2 WHERE ID_orders = $3 RETURNING *', [address, payment_type, id]);
+    // Создать payment
+    await pool.query('INSERT INTO payments (orders_id, amount, payment_date) VALUES ($1, $2, NOW())', [id, order.rows[0].total_amount]);
+    res.json(order.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Error updating order: ' + err.message });
+  }
+});
+
 app.get('/api/orders/:user_id', async (req, res) => {
   const { user_id } = req.params;
   try {
     const result = await pool.query(`
-      SELECT o.*, c.ID_cart as cart_id, c.quantity, p.ID_products as product_id, p.product_name, p.price, d.discount_value
+      SELECT o.*, c.ID_cart as cart_id, c.quantity, p.ID_products as product_id, p.product_name, p.price, d.discount_value, py.payment_date
       FROM orders o 
       JOIN cart c ON o.ID_orders = c.orders_id 
       JOIN products p ON c.products_id = p.ID_products
       JOIN discounts d ON p.discount_id = d.ID_discount
+      LEFT JOIN payments py ON o.ID_orders = py.orders_id
       WHERE o.user_id = $1
     `, [user_id]);
     res.json(result.rows);
