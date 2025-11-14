@@ -39,7 +39,7 @@ export default function UserProfile() {
     }
     const productDisc = Number(item.discount_value || 0); // Преобразование
     const totalDisc = productDisc + personalDiscount;
-    const discountedPrice = Math.max(0, item.price * (1 - totalDisc / 100));
+    const discountedPrice = Math.floor(Math.max(0, item.price * (1 - totalDisc / 100))); // Округление
     acc[item.id_orders].items.push({
       product_name: item.product_name,
       quantity: item.quantity,

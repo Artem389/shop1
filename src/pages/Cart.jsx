@@ -18,12 +18,12 @@ export default function Cart() {
   if (loading) return <p>Загрузка...</p>;
   if (error) return <p>Ошибка: {error}</p>;
 
-  const total = items.reduce((sum, item) => {
+  const total = Math.floor(items.reduce((sum, item) => {
     const productDisc = Number(item.discount_value || 0); // Преобразование в число
     const totalDisc = productDisc + personalDiscount;
-    const discountedPrice = Math.max(0, item.price * (1 - totalDisc / 100));
+    const discountedPrice = Math.floor(Math.max(0, item.price * (1 - totalDisc / 100))); // Округление
     return sum + discountedPrice * item.quantity;
-  }, 0);
+  }, 0));
 
   const handleCheckout = () => {
     navigate('/checkout');
@@ -38,7 +38,7 @@ export default function Cart() {
       {items.map(item => {
         const productDisc = Number(item.discount_value || 0); // Преобразование
         const totalDisc = productDisc + personalDiscount;
-        const discountedPrice = Math.max(0, item.price * (1 - totalDisc / 100));
+        const discountedPrice = Math.floor(Math.max(0, item.price * (1 - totalDisc / 100))); // Округление
         return (
           <div key={item.cart_id}>
             <h2>{item.product_name}</h2>

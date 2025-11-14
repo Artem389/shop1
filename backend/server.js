@@ -38,7 +38,7 @@ async function updateOrderTotal(orders_id) {
       WHERE c.orders_id = $2
     `, [personal_sum, orders_id]);
 
-    const total = Math.max(0, totalRes.rows[0].total || 0);
+    const total = Math.floor(Math.max(0, totalRes.rows[0].total || 0)); // Округление до integer
     await pool.query('UPDATE orders SET total_amount = $1 WHERE ID_orders = $2', [total, orders_id]);
   } catch (err) {
     console.error('Error updating order total:', err);
@@ -270,22 +270,36 @@ app.get('/api/discounts/user/:user_id', async (req, res) => {
 app.post('/api/orders', async (req, res) => {
   const { user_id, items } = req.body;
   try {
-    const orderRes = await pool.query(
-      'INSERT INTO orders (user_id, orders_date, total_amount) VALUES ($1, NOW(), 0) RETURNING ID_orders',
-      [user_id]
-    );
+    const orderRes = await pool.query('INSERT INTO orders (user_id, orders_date, total_amount) VALUES ($1, CURRENT_TIMESTAMP, 0) RETURNING ID_orders', [user_id]);
     const orders_id = orderRes.rows[0].id_orders;
-
     for (const item of items) {
-      await pool.query(
-        'INSERT INTO cart (orders_id, products_id, quantity) VALUES ($1, $2, $3)',
-        [orders_id, item.product_id, item.quantity || 1]
-      );
+      await pool.query('INSERT INTO cart (orders_id, products_id, quantity) VALUES ($1, $2, $3)', [orders_id, item.product_id, item.quantity]);
     }
     await updateOrderTotal(orders_id);
     res.json({ id_orders: orders_id });
   } catch (err) {
     res.status(500).json({ error: 'Error creating order: ' + err.message });
+  }
+});
+
+app.put('/api/orders/:order_id', async (req, res) => {
+  const { order_id } = req.params;
+  const { address, payment_type } = req.body;
+  try {
+    await pool.query('UPDATE orders SET address = $1, payment_type = $2 WHERE ID_orders = $3', [address, payment_type, order_id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Error updating order' });
+  }
+});
+
+app.post('/api/payments', async (req, res) => {
+  const { orders_id, amount } = req.body;
+  try {
+    await pool.query('INSERT INTO payments (orders_id, amount, payment_date) VALUES ($1, $2, CURRENT_TIMESTAMP)', [orders_id, amount]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Error creating payment: ' + err.message });
   }
 });
 

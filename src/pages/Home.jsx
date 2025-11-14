@@ -67,7 +67,7 @@ export default function Home() {
         {filteredProducts.map(prod => {
           const productDisc = Number(prod.discount_value || 0); // Преобразование
           const totalDisc = user ? productDisc + personalDiscount : productDisc;
-          const discountedPrice = Math.max(0, prod.price * (1 - totalDisc / 100));
+          const discountedPrice = Math.floor(Math.max(0, prod.price * (1 - totalDisc / 100))); // Округление
           return (
             <div key={prod.id_products} className="product-card">
               <img src={prod.picture_url} alt={prod.product_name} />

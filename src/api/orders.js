@@ -20,6 +20,16 @@ export const updateOrder = async (order_id, address, payment_type) => {
   return res.json();
 };
 
+export const createPayment = async (orders_id, amount) => {
+  const res = await fetch(`${API_URL}/payments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orders_id, amount }),
+  });
+  if (!res.ok) throw new Error('Error creating payment');
+  return res.json();
+};
+
 export const getOrders = async (user_id) => {
   const res = await fetch(`${API_URL}/orders/${user_id}`);
   if (!res.ok) throw new Error('Error fetching orders');
