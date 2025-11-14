@@ -48,7 +48,7 @@ export default function Home() {
 
   return (
     <div className="home">
-      <h1>Каталог товаров</h1>
+      <h1><center>Каталог товаров</center></h1>
       <div className="content-row">
         <aside className="categories-filter">
           <h3>Категории</h3>
