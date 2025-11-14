@@ -157,16 +157,15 @@ export default function AdminPanel() {
     }
   };
 
-  // Стили с темой
-  const styles = { backgroundColor: isDark ? '#333' : '#fff', color: isDark ? '#fff' : '#000' };
-
   if (loading) return <p>Загрузка...</p>;
   if (error) return <p>Ошибка: {error}</p>;
 
   return (
-    <div className="admin-panel" style={styles}>
-      <h1>Панель администратора</h1>
-      <button onClick={logout}>Выход</button>
+    <div className="admin-panel">
+      <div className="header-row">
+        <h1>Панель администратора</h1>
+        <button onClick={logout}>Выход</button>
+      </div>
 
       <section>
         <h2>Товары</h2>

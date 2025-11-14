@@ -44,44 +44,43 @@ export default function Home() {
   if (loading) return <p>Загрузка...</p>;
   if (error) return <p>Ошибка: {error}</p>;
 
-  // Стили с темой
-  const styles = { backgroundColor: isDark ? '#333' : '#fff', color: isDark ? '#fff' : '#000' };
-
   return (
-    <div className="home" style={styles}>
-      <aside className="categories-filter">
-        <h3>Категории</h3>
-        {categories.map(cat => (
-          <label key={cat.id_category}>
-            <input 
-              type="checkbox" 
-              checked={selectedCategories.includes(cat.id_category)}
-              onChange={() => handleCategoryChange(cat.id_category)}
-            />
-            {cat.category_name}
-          </label>
-        ))}
-      </aside>
-      <main>
-        <h1>Каталог товаров</h1>
-        {filteredProducts.map(prod => {
-          const productDisc = Number(prod.discount_value || 0); // Преобразование
-          const totalDisc = user ? productDisc + personalDiscount : productDisc;
-          const discountedPrice = Math.floor(Math.max(0, prod.price * (1 - totalDisc / 100))); // Округление
-          return (
-            <div key={prod.id_products} className="product-card">
-              <img src={prod.picture_url} alt={prod.product_name} />
-              <h2>{prod.product_name}</h2>
-              <p>{prod.description}</p>
-              <p>Цена: {discountedPrice} руб. (Скидка: {totalDisc}%)</p>
-              <p>Вес: {prod.weight} г</p>
-              <button onClick={() => addItem({ id: prod.id_products, ...prod })}>
-                Добавить в корзину
-              </button>
-            </div>
-          );
-        })}
-      </main>
+    <div className="home">
+      <h1><center>Каталог товаров</center></h1>
+      <div className="content-row">
+        <aside className="categories-filter">
+          <h3>Категории</h3>
+          {categories.map(cat => (
+            <label key={cat.id_category}>
+              <input 
+                type="checkbox" 
+                checked={selectedCategories.includes(cat.id_category)}
+                onChange={() => handleCategoryChange(cat.id_category)}
+              />
+              {cat.category_name}
+            </label>
+          ))}
+        </aside>
+        <main>
+          {filteredProducts.map(prod => {
+            const productDisc = Number(prod.discount_value || 0); // Преобразование
+            const totalDisc = user ? productDisc + personalDiscount : productDisc;
+            const discountedPrice = Math.floor(Math.max(0, prod.price * (1 - totalDisc / 100))); // Округление
+            return (
+              <div key={prod.id_products} className="product-card">
+                <img src={prod.picture_url} alt={prod.product_name} />
+                <h2>{prod.product_name}</h2>
+                <p>{prod.description}</p>
+                <p>Цена: {discountedPrice} руб. (Скидка: {totalDisc}%)</p>
+                <p>Вес: {prod.weight} г</p>
+                <button onClick={() => addItem({ id: prod.id_products, ...prod })}>
+                  Добавить в корзину
+                </button>
+              </div>
+            );
+          })}
+        </main>
+      </div>
     </div>
   );
 }

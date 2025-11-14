@@ -64,13 +64,12 @@ export default function UserProfile() {
     card: 'Картой'
   };
 
-  // Стили с темой
-  const styles = { backgroundColor: isDark ? '#333' : '#fff', color: isDark ? '#fff' : '#000' };
-
   return (
-    <div className="user-profile" style={styles}>
-      <h1>Личный кабинет</h1>
-      <button onClick={logout}>Выход</button>
+    <div className="user-profile">
+      <div className="header-row">
+        <h1>Личный кабинет</h1>
+        <button onClick={logout}>Выход</button>
+      </div>
       <h2>Ваша корзина</h2>
       {loading && <p>Загрузка...</p>}
       {error && <p>Ошибка: {error}</p>}

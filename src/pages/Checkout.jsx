@@ -39,10 +39,8 @@ export default function Checkout() {
     }
   };
 
-  const styles = { backgroundColor: isDark ? '#333' : '#fff', color: isDark ? '#fff' : '#000' };
-
   return (
-    <div className="checkout" style={styles}>
+    <div className="checkout">
       <h1>Оформление заказа</h1>
       <form onSubmit={handleSubmit}>
         <input 

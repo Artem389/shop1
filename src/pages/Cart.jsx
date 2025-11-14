@@ -29,11 +29,8 @@ export default function Cart() {
     navigate('/checkout');
   };
 
-  // Стили с темой
-  const styles = { backgroundColor: isDark ? '#333' : '#fff', color: isDark ? '#fff' : '#000' };
-
   return (
-    <div className="cart" style={styles}>
+    <div className="cart">
       <h1>Корзина</h1>
       {items.map(item => {
         const productDisc = Number(item.discount_value || 0); // Преобразование
