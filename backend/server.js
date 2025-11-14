@@ -20,7 +20,7 @@ const pool = new Pool({
   port: process.env.PG_PORT,
 });
 
-// Функция для обновления total_amount с учетом продуктовой + персональной скидки (сумма %)
+// Функция для обновления total_amount с суммированием скидок
 async function updateOrderTotal(orders_id) {
   try {
     const userRes = await pool.query('SELECT user_id FROM orders WHERE ID_orders = $1', [orders_id]);
@@ -38,7 +38,7 @@ async function updateOrderTotal(orders_id) {
       WHERE c.orders_id = $2
     `, [personal_sum, orders_id]);
 
-    const total = totalRes.rows[0].total || 0;
+    const total = Math.max(0, totalRes.rows[0].total || 0);
     await pool.query('UPDATE orders SET total_amount = $1 WHERE ID_orders = $2', [total, orders_id]);
   } catch (err) {
     console.error('Error updating order total:', err);
@@ -63,7 +63,7 @@ async function initDB() {
       console.log('Admin created');
     }
   } catch (err) {
-    console.error('Init DB error:', err);
+    console.error('Error initializing DB:', err);
   }
 }
 

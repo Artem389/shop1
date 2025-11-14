@@ -8,19 +8,18 @@ import Login from './pages/Login';
 import AdminPanel from './pages/AdminPanel';
 import UserProfile from './pages/UserProfile';
 import Checkout from './pages/Checkout'; // Новый
-import { useContext } from 'react';
-import { ThemeContext } from './context/ThemeContext';
+import { useTheme } from './context/ThemeContext';
 import { useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function AppContent() {
-  const { theme, toggleTheme } = useContext(ThemeContext);
+  const { isDark, toggleTheme } = useTheme();
   const { user } = useAuth();
 
   const cabinetPath = user ? (user.role === 'admin' ? '/admin' : '/profile') : '/login';
 
   return (
-    <div className={`app ${theme}`}>
+    <div className={`app ${isDark ? 'dark' : 'light'}`}>
       <header>
         <Link to="/">Главная</Link>
         <Link to="/cart">Корзина</Link>

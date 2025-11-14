@@ -3,6 +3,7 @@ import { getProducts } from '../api/products';
 import { getCategories } from '../api/categories';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext'; // Тема
 
 export default function Home() {
   const [products, setProducts] = useState([]);
@@ -12,6 +13,7 @@ export default function Home() {
   const [error, setError] = useState(null);
   const { addItem } = useCart();
   const { user, personalDiscount } = useAuth();
+  const { isDark } = useTheme(); // Тема
 
   useEffect(() => {
     async function fetchData() {
@@ -42,8 +44,11 @@ export default function Home() {
   if (loading) return <p>Загрузка...</p>;
   if (error) return <p>Ошибка: {error}</p>;
 
+  // Стили с темой
+  const styles = { backgroundColor: isDark ? '#333' : '#fff', color: isDark ? '#fff' : '#000' };
+
   return (
-    <div className="home">
+    <div className="home" style={styles}>
       <aside className="categories-filter">
         <h3>Категории</h3>
         {categories.map(cat => (
@@ -60,9 +65,9 @@ export default function Home() {
       <main>
         <h1>Каталог товаров</h1>
         {filteredProducts.map(prod => {
-          const productDisc = prod.discount_value || 0;
+          const productDisc = Number(prod.discount_value || 0); // Преобразование
           const totalDisc = user ? productDisc + personalDiscount : productDisc;
-          const discountedPrice = prod.price * (1 - totalDisc / 100);
+          const discountedPrice = Math.max(0, prod.price * (1 - totalDisc / 100));
           return (
             <div key={prod.id_products} className="product-card">
               <img src={prod.picture_url} alt={prod.product_name} />

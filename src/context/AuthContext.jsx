@@ -24,7 +24,7 @@ export function AuthProvider({ children }) {
   const fetchPersonalDiscount = async (userId) => {
     try {
       const data = await getUserDiscount(userId);
-      setPersonalDiscount(data.personal_sum || 0);
+      setPersonalDiscount(Number(data.personal_sum || 0)); // Number для безопасности
     } catch (err) {
       console.error('Error fetching personal discount:', err);
     }

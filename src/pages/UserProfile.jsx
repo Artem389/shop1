@@ -3,12 +3,14 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getOrders } from '../api/orders';
+import { useTheme } from '../context/ThemeContext'; // Тема
 
 export default function UserProfile() {
   const { user, logout, personalDiscount } = useAuth();
   const { loadCart, items, error, loading } = useCart();
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
+  const { isDark } = useTheme(); // Тема
 
   useEffect(() => {
     if (!user || user.role !== 'user') navigate('/');
@@ -35,12 +37,13 @@ export default function UserProfile() {
         items: []
       };
     }
-    const productDisc = item.discount_value || 0;
+    const productDisc = Number(item.discount_value || 0); // Преобразование
     const totalDisc = productDisc + personalDiscount;
+    const discountedPrice = Math.max(0, item.price * (1 - totalDisc / 100));
     acc[item.id_orders].items.push({
       product_name: item.product_name,
       quantity: item.quantity,
-      price: item.price * (1 - totalDisc / 100)
+      price: discountedPrice
     });
     return acc;
   }, {});
@@ -61,8 +64,11 @@ export default function UserProfile() {
     card: 'Картой'
   };
 
+  // Стили с темой
+  const styles = { backgroundColor: isDark ? '#333' : '#fff', color: isDark ? '#fff' : '#000' };
+
   return (
-    <div className="user-profile">
+    <div className="user-profile" style={styles}>
       <h1>Личный кабинет</h1>
       <button onClick={logout}>Выход</button>
       <h2>Ваша корзина</h2>

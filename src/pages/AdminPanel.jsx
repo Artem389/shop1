@@ -5,6 +5,7 @@ import { getDiscounts, createDiscount, updateDiscount, deleteDiscount } from '..
 import { getUsers } from '../api/users';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext'; // Тема
 
 export default function AdminPanel() {
   const { user, logout } = useAuth();
@@ -21,6 +22,7 @@ export default function AdminPanel() {
   const [editingDiscId, setEditingDiscId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { isDark } = useTheme(); // Тема
 
   useEffect(() => {
     if (user?.role !== 'admin') navigate('/');
@@ -44,15 +46,6 @@ export default function AdminPanel() {
     }
   };
 
-  const fetchDiscounts = async () => {
-    try {
-      const discs = await getDiscounts();
-      setDiscounts(discs);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
   const handleProductSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -69,6 +62,30 @@ export default function AdminPanel() {
       setError(err.message);
     }
   };
+
+  const startEditProduct = (prod) => {
+    setFormProduct({
+      discount_id: prod.discount_id || '',
+      category_id: prod.category_id,
+      product_name: prod.product_name,
+      price: prod.price,
+      weight: prod.weight,
+      picture_url: prod.picture_url,
+      description: prod.description
+    });
+    setEditingProdId(prod.id_products);
+  };
+
+  const handleDeleteProduct = async (id) => {
+    try {
+      await deleteProduct(id);
+      setProducts(prev => prev.filter(p => p.id_products !== id));
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // Аналогично для категорий и скидок (как в лекциях)
 
   const handleCategorySubmit = async (e) => {
     e.preventDefault();
@@ -87,6 +104,20 @@ export default function AdminPanel() {
     }
   };
 
+  const startEditCategory = (cat) => {
+    setFormCategory({ category_name: cat.category_name });
+    setEditingCatId(cat.id_category);
+  };
+
+  const handleDeleteCategory = async (id) => {
+    try {
+      await deleteCategory(id);
+      setCategories(prev => prev.filter(c => c.id_category !== id));
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const handleDiscountSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -99,28 +130,9 @@ export default function AdminPanel() {
       }
       setFormDiscount({ discount_name: '', discount_value: '', user_id: '' });
       setEditingDiscId(null);
-      await fetchDiscounts(); // Автоматическое обновление списка скидок
     } catch (err) {
       setError(err.message);
     }
-  };
-
-  const startEditProduct = (prod) => {
-    setFormProduct({
-      discount_id: prod.discount_id || '',
-      category_id: prod.category_id || '',
-      product_name: prod.product_name,
-      price: prod.price,
-      weight: prod.weight,
-      picture_url: prod.picture_url,
-      description: prod.description
-    });
-    setEditingProdId(prod.id_products);
-  };
-
-  const startEditCategory = (cat) => {
-    setFormCategory({ category_name: cat.category_name });
-    setEditingCatId(cat.id_category);
   };
 
   const startEditDiscount = (disc) => {
@@ -132,24 +144,6 @@ export default function AdminPanel() {
     setEditingDiscId(disc.id_discount);
   };
 
-  const handleDeleteProduct = async (id) => {
-    try {
-      await deleteProduct(id);
-      setProducts(prev => prev.filter(p => p.id_products !== id));
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleDeleteCategory = async (id) => {
-    try {
-      await deleteCategory(id);
-      setCategories(prev => prev.filter(c => c.id_category !== id));
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
   const handleDeleteDiscount = async (id) => {
     try {
       await deleteDiscount(id);
@@ -159,11 +153,14 @@ export default function AdminPanel() {
     }
   };
 
+  // Стили с темой
+  const styles = { backgroundColor: isDark ? '#333' : '#fff', color: isDark ? '#fff' : '#000' };
+
   if (loading) return <p>Загрузка...</p>;
   if (error) return <p>Ошибка: {error}</p>;
 
   return (
-    <div className="admin-panel">
+    <div className="admin-panel" style={styles}>
       <h1>Панель администратора</h1>
       <button onClick={logout}>Выход</button>
 
@@ -172,13 +169,12 @@ export default function AdminPanel() {
         <form onSubmit={handleProductSubmit}>
           <select value={formProduct.discount_id} onChange={e => setFormProduct({...formProduct, discount_id: e.target.value})}>
             <option value="">Без скидки</option>
-            {discounts.map(disc => <option key={disc.id_discount} value={disc.id_discount}>{disc.discount_name}</option>)}
+            {discounts.map(disc => <option key={disc.id_discount} value={disc.id_discount}>{disc.discount_name} ({disc.discount_value}%)</option>)}
           </select>
-          <select value={formProduct.category_id} onChange={e => setFormProduct({...formProduct, category_id: e.target.value})}>
-            <option value="">Без категории</option>
+          <select value={formProduct.category_id} onChange={e => setFormProduct({...formProduct, category_id: e.target.value})} required>
             {categories.map(cat => <option key={cat.id_category} value={cat.id_category}>{cat.category_name}</option>)}
           </select>
-          <input value={formProduct.product_name} onChange={e => setFormProduct({...formProduct, product_name: e.target.value})} placeholder="Название товара" required />
+          <input value={formProduct.product_name} onChange={e => setFormProduct({...formProduct, product_name: e.target.value})} placeholder="Название" required />
           <input value={formProduct.price} onChange={e => setFormProduct({...formProduct, price: e.target.value})} placeholder="Цена" required />
           <input value={formProduct.weight} onChange={e => setFormProduct({...formProduct, weight: e.target.value})} placeholder="Вес" required />
           <input value={formProduct.picture_url} onChange={e => setFormProduct({...formProduct, picture_url: e.target.value})} placeholder="URL картинки" />
@@ -194,7 +190,7 @@ export default function AdminPanel() {
                 <td>{prod.price}</td>
                 <td>{prod.weight}</td>
                 <td>{prod.category_name}</td>
-                <td>{prod.discount_name} ({prod.discount_value}%)</td>
+                <td>{prod.discount_value || 0}%</td>
                 <td>
                   <button onClick={() => startEditProduct(prod)}>Редактировать</button>
                   <button onClick={() => handleDeleteProduct(prod.id_products)}>Удалить</button>
@@ -232,7 +228,8 @@ export default function AdminPanel() {
         <form onSubmit={handleDiscountSubmit}>
           <input value={formDiscount.discount_name} onChange={e => setFormDiscount({...formDiscount, discount_name: e.target.value})} placeholder="Название скидки" required />
           <input value={formDiscount.discount_value} onChange={e => setFormDiscount({...formDiscount, discount_value: e.target.value})} placeholder="Значение (%)" required />
-          <select value={formDiscount.user_id} onChange={e => setFormDiscount({...formDiscount, user_id: e.target.value})} required>
+          <select value={formDiscount.user_id} onChange={e => setFormDiscount({...formDiscount, user_id: e.target.value})}>
+            <option value="">Общая (для всех)</option>
             {users.map(usr => <option key={usr.id_users} value={usr.id_users}>{usr.email}</option>)}
           </select>
           <button type="submit">{editingDiscId ? 'Обновить' : 'Добавить'}</button>
