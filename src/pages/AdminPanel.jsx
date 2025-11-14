@@ -29,18 +29,19 @@ export default function AdminPanel() {
     fetchData();
   }, [user]);
 
-  const fetchData = async () => {
+ const fetchData = async () => {
     try {
-      const prods = await getProducts();
-      const cats = await getCategories();
-      const discs = await getDiscounts();
-      const usrs = await getUsers();
+      const [prods, cats, discs, usrs] = await Promise.all([
+        getProducts(), getCategories(), getDiscounts(), getUsers()
+      ]);
       setProducts(prods);
       setCategories(cats);
       setDiscounts(discs);
       setUsers(usrs);
+      console.log('Админ-панель: данные загружены успешно');
     } catch (err) {
       setError(err.message);
+      console.error('Админ-панель: ошибка загрузки данных', err.message);
     } finally {
       setLoading(false);
     }
@@ -122,19 +123,26 @@ export default function AdminPanel() {
 
   const handleDiscountSubmit = async (e) => {
     e.preventDefault();
+    
+    const value = Number(formDiscount.discount_value);
+    if (isNaN(value) || value < 0 || value > 99) {
+      alert('Размер скидки должен быть числом от 0 до 99');
+      return;
+    }
+
     try {
+      const data = { ...formDiscount, discount_value: value };
       if (editingDiscId) {
-        const updated = await updateDiscount(editingDiscId, formDiscount);
+        const updated = await updateDiscount(editingDiscId, data);
         setDiscounts(prev => prev.map(d => d.id_discount === editingDiscId ? updated : d));
       } else {
-        const newDisc = await createDiscount(formDiscount);
-        setDiscounts([...discounts, newDisc]);
+        const newDisc = await createDiscount(data);
+        setDiscounts(prev => [...prev, newDisc]);
       }
       setFormDiscount({ discount_name: '', discount_value: '', user_id: '' });
       setEditingDiscId(null);
-      await fetchData(); // Обновление после успеха
     } catch (err) {
-      setError(err.message);
+      alert(err.message);
     }
   };
 

@@ -15,8 +15,14 @@ export default function Checkout() {
   const [submitError, setSubmitError] = useState(null);
 
   if (!user) return <div className="error">Авторизуйтесь для оформления заказа</div>;
-  if (loading) return <div className="loading">Загрузка...</div>;
-  if (error) return <div className="error">Ошибка: {error}</div>;
+  if (loading) {
+  console.log('Загрузка данных корзины для оформления...');
+  return <div className="loading">Загрузка...</div>;
+}
+if (error) {
+  console.error('Ошибка корзины в checkout:', error);
+  return <div className="error">Ошибка: {error}</div>;
+}
   if (items.length === 0) return <div className="error">Корзина пуста</div>;
 
   const orders_id = items[0].id_orders; // Предполагаем, что все items из одного заказа
