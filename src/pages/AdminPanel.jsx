@@ -157,8 +157,8 @@ export default function AdminPanel() {
     }
   };
 
-  if (loading) return <p>Загрузка...</p>;
-  if (error) return <p>Ошибка: {error}</p>;
+  if (loading) return <div className="loading">Загрузка...</div>;
+  if (error) return <div className="error">Ошибка: {error}</div>;
 
   return (
     <div className="admin-panel">

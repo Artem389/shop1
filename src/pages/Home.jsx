@@ -41,12 +41,12 @@ export default function Home() {
     selectedCategories.length === 0 || selectedCategories.includes(prod.category_id)
   );
 
-  if (loading) return <p>Загрузка...</p>;
-  if (error) return <p>Ошибка: {error}</p>;
+  if (loading) return <div className="loading">Загрузка...</div>;
+  if (error) return <div className="error">Ошибка: {error}</div>;
 
   return (
     <div className="home">
-      <h1><center>Каталог товаров</center></h1>
+      <h1>Каталог товаров</h1>
       <div className="content-row">
         <aside className="categories-filter">
           <h3>Категории</h3>

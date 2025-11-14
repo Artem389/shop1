@@ -14,9 +14,9 @@ export default function Cart() {
     if (user) loadCart();
   }, [user]);
 
-  if (!user) return <p>Авторизуйтесь для просмотра корзины</p>;
-  if (loading) return <p>Загрузка...</p>;
-  if (error) return <p>Ошибка: {error}</p>;
+  if (!user) return <div className="error">Авторизуйтесь для просмотра корзины</div>;
+  if (loading) return <div className="loading">Загрузка...</div>;
+  if (error) return <div className="error">Ошибка: {error}</div>;
 
   const total = Math.floor(items.reduce((sum, item) => {
     const productDisc = Number(item.discount_value || 0); // Преобразование в число

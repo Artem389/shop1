@@ -14,10 +14,10 @@ export default function Checkout() {
   const [paymentType, setPaymentType] = useState('cash');
   const [submitError, setSubmitError] = useState(null);
 
-  if (!user) return <p>Авторизуйтесь для оформления заказа</p>;
-  if (loading) return <p>Загрузка...</p>;
-  if (error) return <p>Ошибка: {error}</p>;
-  if (items.length === 0) return <p>Корзина пуста</p>;
+  if (!user) return <div className="error">Авторизуйтесь для оформления заказа</div>;
+  if (loading) return <div className="loading">Загрузка...</div>;
+  if (error) return <div className="error">Ошибка: {error}</div>;
+  if (items.length === 0) return <div className="error">Корзина пуста</div>;
 
   const orders_id = items[0].id_orders; // Предполагаем, что все items из одного заказа
 
@@ -57,7 +57,7 @@ export default function Checkout() {
         <p>Итого к оплате: {total} руб.</p>
         <button type="submit">Оплатить</button>
       </form>
-      {submitError && <p>Ошибка: {submitError}</p>}
+      {submitError && <div className="error">Ошибка: {submitError}</div>}
     </div>
   );
 }

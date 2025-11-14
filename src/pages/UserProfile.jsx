@@ -7,9 +7,11 @@ import { useTheme } from '../context/ThemeContext'; // Тема
 
 export default function UserProfile() {
   const { user, logout, personalDiscount } = useAuth();
-  const { loadCart, items, error, loading } = useCart();
+  const { loadCart, items, error: cartError, loading: cartLoading } = useCart();
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [errorOrders, setErrorOrders] = useState(null);
   const { isDark } = useTheme(); // Тема
 
   useEffect(() => {
@@ -20,7 +22,9 @@ export default function UserProfile() {
         const data = await getOrders(user.id);
         setOrders(data.filter(o => o.payment_date)); // Только completed
       } catch (err) {
-        console.error(err);
+        setErrorOrders(err.message);
+      } finally {
+        setLoadingOrders(false);
       }
     }
     fetchOrders();
@@ -71,8 +75,8 @@ export default function UserProfile() {
         <button onClick={logout}>Выход</button>
       </div>
       <h2>Ваша корзина</h2>
-      {loading && <p>Загрузка...</p>}
-      {error && <p>Ошибка: {error}</p>}
+      {cartLoading && <div className="loading">Загрузка...</div>}
+      {cartError && <div className="error">Ошибка: {cartError}</div>}
       {items.map(item => (
         <div key={item.cart_id}>
           <h3>{item.product_name}</h3>
@@ -80,6 +84,8 @@ export default function UserProfile() {
         </div>
       ))}
       <h2>Ваши заказы</h2>
+      {loadingOrders && <div className="loading">Загрузка...</div>}
+      {errorOrders && <div className="error">Ошибка: {errorOrders}</div>}
       {Object.values(groupedOrders).map(order => (
         <div key={order.id}>
           <h3>Заказ #{order.id}</h3>

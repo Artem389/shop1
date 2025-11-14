@@ -232,6 +232,22 @@ tr:hover {
   gap: 2rem;
 }
 
+.loading {
+  text-align: center;
+  font-size: 1.2em;
+  font-weight: bold;
+  color: var(--text-color);
+  margin: 2rem 0;
+}
+
+.error {
+  text-align: center;
+  font-size: 1.2em;
+  font-weight: bold;
+  color: red; /* Красный для ошибок */
+  margin: 2rem 0;
+}
+
 @media (max-width: 768px) {
   .home {
     flex-direction: column;
