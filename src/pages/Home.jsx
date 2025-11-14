@@ -40,7 +40,7 @@ export default function Home() {
   );
 
   if (loading) return <p>Загрузка...</p>;
-  if (error) return <p style={{color: 'red'}}>Ошибка: {error}</p>;
+  if (error) return <p>Ошибка: {error}</p>;
 
   return (
     <div className="home">

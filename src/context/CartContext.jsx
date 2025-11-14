@@ -1,6 +1,6 @@
 import { createContext, useReducer, useContext } from 'react';
-import { addToCart, getCart, deleteFromCart } from '../api/cart';
-import { useAuth } from './AuthContext';
+import { createOrder, getOrders, deleteCartItem } from '../api/orders';
+import { useAuth } from './AuthContext'; // Для проверки auth
 
 const CartContext = createContext();
 
@@ -12,22 +12,10 @@ const initialState = {
 
 function cartReducer(state, action) {
   switch (action.type) {
-    case 'ADD_ITEM': {
-      const existing = state.items.find(item => item.product_id === action.payload.product_id);
-      if (existing) {
-        return {
-          ...state,
-          items: state.items.map(item =>
-            item.product_id === action.payload.product_id
-              ? { ...item, quantity: item.quantity + 1 }
-              : item
-          ),
-        };
-      }
-      return { ...state, items: [...state.items, { ...action.payload, quantity: 1 }] };
-    }
+    case 'ADD_ITEM':
+      return { ...state, items: [...state.items, action.payload] };
     case 'REMOVE_ITEM':
-      return { ...state, items: state.items.filter(item => item.product_id !== action.payload) };
+      return { ...state, items: state.items.filter(item => item.cart_id !== action.payload) };
     case 'LOAD_CART':
       return { ...state, items: action.payload, loading: false };
     case 'SET_LOADING':
@@ -47,10 +35,8 @@ export function CartProvider({ children }) {
     if (!user) return dispatch({ type: 'SET_ERROR', payload: 'Авторизуйтесь для просмотра корзины' });
     dispatch({ type: 'SET_LOADING' });
     try {
-      const cartItems = await getCart(user.id);
-      // Map to have id = product_id for consistency
-      const mapped = cartItems.map(item => ({ ...item, id: item.product_id }));
-      dispatch({ type: 'LOAD_CART', payload: mapped });
+      const orders = await getOrders(user.id);
+      dispatch({ type: 'LOAD_CART', payload: orders });
     } catch (err) {
       dispatch({ type: 'SET_ERROR', payload: err.message });
     }
@@ -58,19 +44,16 @@ export function CartProvider({ children }) {
 
   const addItem = async (item) => {
     if (!user) return dispatch({ type: 'SET_ERROR', payload: 'Авторизуйтесь для добавления в корзину' });
-    try {
-      await addToCart(user.id, item.id); // id = product_id
-      dispatch({ type: 'ADD_ITEM', payload: { product_id: item.id, ...item } });
-    } catch (err) {
-      dispatch({ type: 'SET_ERROR', payload: err.message });
-    }
+    dispatch({ type: 'ADD_ITEM', payload: item });
+    // Синхронизировать с БД (создать заказ если нужно)
+    await createOrder(user.id, [{ product_id: item.id, quantity: 1 }]);
   };
 
-  const removeItem = async (product_id) => {
+  const removeItem = async (cart_id) => {
     if (!user) return;
     try {
-      await deleteFromCart(user.id, product_id);
-      dispatch({ type: 'REMOVE_ITEM', payload: product_id });
+      await deleteCartItem(cart_id);
+      dispatch({ type: 'REMOVE_ITEM', payload: cart_id });
     } catch (err) {
       dispatch({ type: 'SET_ERROR', payload: err.message });
     }

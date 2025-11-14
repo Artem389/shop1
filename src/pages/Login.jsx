@@ -33,7 +33,7 @@ export default function Login() {
       <button type="button" onClick={() => setIsRegister(!isRegister)}>
         {isRegister ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Зарегистрироваться'}
       </button>
-      {error && <p style={{color: 'red'}}>Ошибка: {error}</p>}
+      {error && <p>Ошибка: {error}</p>}
     </form>
   );
 }

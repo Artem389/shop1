@@ -10,7 +10,10 @@ export function AuthProvider({ children }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Проверка localStorage или куки, но для простоты - пусто
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
     setLoading(false);
   }, []);
 
@@ -18,6 +21,7 @@ export function AuthProvider({ children }) {
     try {
       const data = await login(email, password);
       setUser(data.user);
+      localStorage.setItem('user', JSON.stringify(data.user));
       if (data.user.role === 'admin') navigate('/admin');
       else navigate('/profile');
     } catch (err) {
@@ -29,6 +33,7 @@ export function AuthProvider({ children }) {
     try {
       const data = await register(phone, password, email);
       setUser({ id: data.id_users, role: 'user' });
+      localStorage.setItem('user', JSON.stringify({ id: data.id_users, role: 'user' }));
       navigate('/profile');
     } catch (err) {
       throw err;
@@ -37,6 +42,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('user');
     navigate('/');
   };
 

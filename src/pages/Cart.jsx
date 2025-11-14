@@ -14,17 +14,20 @@ export default function Cart() {
   if (loading) return <p>Загрузка...</p>;
   if (error) return <p>Ошибка: {error}</p>;
 
-  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const total = items.reduce((sum, item) => {
+    const discountedPrice = item.price * (1 - (item.discount_value || 0) / 100);
+    return sum + discountedPrice * item.quantity;
+  }, 0);
 
   return (
     <div className="cart">
       <h1>Корзина</h1>
       {items.map(item => (
-        <div key={`${item.id_orders}_${item.product_id}`}>
+        <div key={item.cart_id}>
           <h2>{item.product_name}</h2>
           <p>Количество: {item.quantity}</p>
-          <p>Сумма: {item.price * item.quantity} руб.</p>
-          <button onClick={() => removeItem(item.product_id)}>Удалить</button>
+          <p>Сумма: {item.price * (1 - (item.discount_value || 0) / 100) * item.quantity} руб. (Скидка: {item.discount_value || 0}%)</p>
+          <button onClick={() => removeItem(item.cart_id)}>Удалить</button>
         </div>
       ))}
       <p>Итого: {total} руб.</p>
