@@ -76,6 +76,16 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
+// Новый endpoint для списка пользователей (для админа)
+app.get('/api/users', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT ID_users as id, email FROM users WHERE role_id = (SELECT ID_role FROM roles WHERE role_name = \'user\')');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching users' });
+  }
+});
+
 // Products CRUD
 app.get('/api/products', async (req, res) => {
   try {
@@ -85,10 +95,6 @@ app.get('/api/products', async (req, res) => {
       JOIN categories c ON p.category_id = c.ID_category 
       JOIN discounts d ON p.discount_id = d.ID_discount
     `);
-    // Рандомно назначить скидку 30% товаров (если discount_value=0)
-    result.rows.forEach(row => {
-      if (row.discount_value === 0 && Math.random() < 0.3) row.discount_value = 10; // Пример скидки
-    });
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Error fetching products' });
@@ -176,7 +182,11 @@ app.delete('/api/categories/:id', async (req, res) => {
 // Discounts CRUD (админ назначает на user или товар)
 app.get('/api/discounts', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM discounts');
+    const result = await pool.query(`
+      SELECT d.*, u.email 
+      FROM discounts d 
+      JOIN users u ON d.user_id = u.ID_users
+    `);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Error fetching discounts' });
@@ -218,20 +228,41 @@ app.delete('/api/discounts/:id', async (req, res) => {
 app.post('/api/orders', async (req, res) => {
   const { user_id, items } = req.body; // items: [{product_id, quantity}]
   try {
-    const order = await pool.query(
-      'INSERT INTO orders (user_id, orders_date, total_amount) VALUES ($1, NOW(), 0) RETURNING *',
-      [user_id]
-    );
-    let total = 0;
-    for (const item of items) {
-      await pool.query('INSERT INTO cart (orders_id, products_id, quantity) VALUES ($1, $2, $3)', [order.rows[0].id_orders, item.product_id, item.quantity]);
-      const prod = await pool.query('SELECT price FROM products WHERE ID_products=$1', [item.product_id]);
-      total += prod.rows[0].price * item.quantity;
+    // Получить последний order или создать новый
+    let order = await pool.query('SELECT * FROM orders WHERE user_id = $1 ORDER BY orders_date DESC LIMIT 1', [user_id]);
+    if (order.rows.length === 0) {
+      order = await pool.query(
+        'INSERT INTO orders (user_id, orders_date, total_amount) VALUES ($1, NOW(), 0) RETURNING *',
+        [user_id]
+      );
+    } else {
+      order = { rows: [order.rows[0]] };
     }
-    await pool.query('UPDATE orders SET total_amount=$1 WHERE ID_orders=$2', [total, order.rows[0].id_orders]);
+    const orders_id = order.rows[0].id_orders;
+    let total = order.rows[0].total_amount;
+
+    for (const item of items) {
+      const existingCart = await pool.query(
+        'SELECT * FROM cart WHERE orders_id = $1 AND products_id = $2',
+        [orders_id, item.product_id]
+      );
+      let priceAddition = 0;
+      if (existingCart.rows.length > 0) {
+        // Update quantity
+        const newQuantity = existingCart.rows[0].quantity + item.quantity;
+        await pool.query('UPDATE cart SET quantity = $1 WHERE ID_cart = $2', [newQuantity, existingCart.rows[0].id_cart]);
+        priceAddition = (await pool.query('SELECT price FROM products WHERE ID_products=$1', [item.product_id])).rows[0].price * item.quantity;
+      } else {
+        // Insert new
+        await pool.query('INSERT INTO cart (orders_id, products_id, quantity) VALUES ($1, $2, $3)', [orders_id, item.product_id, item.quantity]);
+        priceAddition = (await pool.query('SELECT price FROM products WHERE ID_products=$1', [item.product_id])).rows[0].price * item.quantity;
+      }
+      total += priceAddition;
+    }
+    await pool.query('UPDATE orders SET total_amount = $1 WHERE ID_orders = $2', [total, orders_id]);
     res.json(order.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: 'Error creating order' });
+    res.status(500).json({ error: 'Error creating/updating order' });
   }
 });
 
@@ -260,6 +291,18 @@ app.delete('/api/cart/:cart_id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Error deleting cart item' });
+  }
+});
+
+// Новый PUT для обновления quantity
+app.put('/api/cart/:cart_id', async (req, res) => {
+  const { cart_id } = req.params;
+  const { quantity } = req.body;
+  try {
+    await pool.query('UPDATE cart SET quantity = $1 WHERE ID_cart = $2', [quantity, cart_id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Error updating cart' });
   }
 });
 

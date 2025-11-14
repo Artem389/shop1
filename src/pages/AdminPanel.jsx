@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getProducts, createProduct, updateProduct, deleteProduct } from '../api/products';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '../api/categories';
 import { getDiscounts, createDiscount, updateDiscount, deleteDiscount } from '../api/discounts';
+import { getUsers } from '../api/users';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -11,6 +12,7 @@ export default function AdminPanel() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [discounts, setDiscounts] = useState([]);
+  const [users, setUsers] = useState([]);
   const [formProduct, setFormProduct] = useState({ discount_id: '', category_id: '', product_name: '', price: '', weight: '', picture_url: '', description: '' });
   const [formCategory, setFormCategory] = useState({ category_name: '' });
   const [formDiscount, setFormDiscount] = useState({ discount_name: '', discount_value: '', user_id: '' });
@@ -27,9 +29,11 @@ export default function AdminPanel() {
         const prods = await getProducts();
         const cats = await getCategories();
         const discs = await getDiscounts();
+        const usrs = await getUsers();
         setProducts(prods);
         setCategories(cats);
         setDiscounts(discs);
+        setUsers(usrs);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -103,12 +107,13 @@ export default function AdminPanel() {
     e.preventDefault();
     try {
       if (editingDiscId) {
-        const updated = await updateDiscount(editingDiscId, formDiscount);
-        setDiscounts(prev => prev.map(d => d.id_discount === editingDiscId ? updated : d));
+        await updateDiscount(editingDiscId, formDiscount);
       } else {
-        const newDisc = await createDiscount(formDiscount);
-        setDiscounts([...discounts, newDisc]);
+        await createDiscount(formDiscount);
       }
+      // Перезагрузка списка скидок для получения свежих данных с email
+      const freshDiscounts = await getDiscounts();
+      setDiscounts(freshDiscounts);
       setFormDiscount({ discount_name: '', discount_value: '', user_id: '' });
       setEditingDiscId(null);
     } catch (err) {
@@ -124,7 +129,9 @@ export default function AdminPanel() {
   const handleDeleteDiscount = async (id) => {
     if (window.confirm('Удалить?')) {
       await deleteDiscount(id);
-      setDiscounts(discounts.filter(d => d.id_discount !== id));
+      // Перезагрузка после удаления
+      const freshDiscounts = await getDiscounts();
+      setDiscounts(freshDiscounts);
     }
   };
 
@@ -198,7 +205,10 @@ export default function AdminPanel() {
         <form onSubmit={handleDiscountSubmit}>
           <input value={formDiscount.discount_name} onChange={e => setFormDiscount({...formDiscount, discount_name: e.target.value})} placeholder="Название скидки" required />
           <input value={formDiscount.discount_value} onChange={e => setFormDiscount({...formDiscount, discount_value: e.target.value})} placeholder="Значение (%)" required />
-          <input value={formDiscount.user_id} onChange={e => setFormDiscount({...formDiscount, user_id: e.target.value})} placeholder="ID пользователя (для персональной)" />
+          <select value={formDiscount.user_id} onChange={e => setFormDiscount({...formDiscount, user_id: e.target.value})}>
+            <option value="">Персональная скидка (выберите пользователя)</option>
+            {users.map(usr => <option key={usr.id} value={usr.id}>{usr.email}</option>)}
+          </select>
           <button type="submit">{editingDiscId ? 'Обновить' : 'Добавить'}</button>
         </form>
         <table>
@@ -208,7 +218,7 @@ export default function AdminPanel() {
               <tr key={disc.id_discount}>
                 <td>{disc.discount_name}</td>
                 <td>{disc.discount_value}</td>
-                <td>{disc.user_id}</td>
+                <td>{disc.email}</td>
                 <td>
                   <button onClick={() => startEditDiscount(disc)}>Редактировать</button>
                   <button onClick={() => handleDeleteDiscount(disc.id_discount)}>Удалить</button>

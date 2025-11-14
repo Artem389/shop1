@@ -27,7 +27,7 @@ export default function Cart() {
           <h2>{item.product_name}</h2>
           <p>Количество: {item.quantity}</p>
           <p>Сумма: {item.price * (1 - (item.discount_value || 0) / 100) * item.quantity} руб. (Скидка: {item.discount_value || 0}%)</p>
-          <button onClick={() => removeItem(item.cart_id)}>Удалить</button>
+          <button onClick={() => removeItem(item.cart_id, item.quantity)}>Удалить</button>
         </div>
       ))}
       <p>Итого: {total} руб.</p>

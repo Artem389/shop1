@@ -21,3 +21,13 @@ export const deleteCartItem = async (cart_id) => {
   if (!res.ok) throw new Error('Error deleting cart item');
   return res.json();
 };
+
+export const updateCartQuantity = async (cart_id, quantity) => {
+  const res = await fetch(`${API_URL}/cart/${cart_id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ quantity }),
+  });
+  if (!res.ok) throw new Error('Error updating cart quantity');
+  return res.json();
+};
