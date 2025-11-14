@@ -16,7 +16,7 @@ export default function UserProfile() {
     async function fetchOrders() {
       try {
         const data = await getOrders(user.id);
-        setOrders(data);
+        setOrders(data.filter(o => o.payment_date)); // Только completed
       } catch (err) {
         console.error(err);
       }
@@ -35,10 +35,11 @@ export default function UserProfile() {
         items: []
       };
     }
+    const disc = item.discount_value || 0;
     acc[item.id_orders].items.push({
       product_name: item.product_name,
       quantity: item.quantity,
-      price: item.price
+      price: item.price * (1 - disc / 100)
     });
     return acc;
   }, {});

@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 export default function Cart() {
-  const { items, loading, error, loadCart, removeItem } = useCart();
+  const { items, loading, error, loadCart, removeItem, updateQuantity } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -32,8 +32,10 @@ export default function Cart() {
         <div key={item.cart_id}>
           <h2>{item.product_name}</h2>
           <p>Количество: {item.quantity}</p>
+          <button onClick={() => updateQuantity(item.cart_id, item.quantity - 1)}>-</button>
+          <button onClick={() => updateQuantity(item.cart_id, item.quantity + 1)}>+</button>
           <p>Сумма: {item.price * (1 - (item.discount_value || 0) / 100) * item.quantity} руб. (Скидка: {item.discount_value || 0}%)</p>
-          <button onClick={() => removeItem(item.cart_id, item.quantity)}>Удалить</button>
+          <button onClick={() => removeItem(item.cart_id)}>Удалить полностью</button>
         </div>
       ))}
       <p>Итого: {total} руб.</p>

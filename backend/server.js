@@ -1,7 +1,7 @@
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
-const bcrypt = require('bcryptjs'); // Для хэширования паролей
+const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
 
 dotenv.config();
@@ -20,15 +20,31 @@ const pool = new Pool({
   port: process.env.PG_PORT,
 });
 
-// Создать роли и админа по умолчанию
+// Функция для обновления total_amount с учетом продуктовой скидки
+async function updateOrderTotal(orders_id) {
+  try {
+    const totalRes = await pool.query(`
+      SELECT SUM(c.quantity * p.price * (1 - COALESCE(d.discount_value, 0) / 100.0)) AS total
+      FROM cart c
+      JOIN products p ON c.products_id = p.ID_products
+      LEFT JOIN discounts d ON p.discount_id = d.ID_discount
+      WHERE c.orders_id = $1
+    `, [orders_id]);
+
+    const total = totalRes.rows[0].total || 0;
+    await pool.query('UPDATE orders SET total_amount = $1 WHERE ID_orders = $2', [total, orders_id]);
+  } catch (err) {
+    console.error('Error updating order total:', err);
+  }
+}
+
+// Init DB
 async function initDB() {
   try {
-    // Создать роли если нет
     await pool.query(`
       INSERT INTO roles (role_name) VALUES ('user') ON CONFLICT DO NOTHING;
       INSERT INTO roles (role_name) VALUES ('admin') ON CONFLICT DO NOTHING;
     `);
-    // Создать админа если нет
     const adminRole = await pool.query('SELECT ID_role FROM roles WHERE role_name = $1', ['admin']);
     const adminExists = await pool.query('SELECT * FROM users WHERE email = $1', ['admin@example.com']);
     if (adminExists.rows.length === 0) {
@@ -46,7 +62,7 @@ async function initDB() {
 
 initDB();
 
-// Auth: login
+// Auth login
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -60,26 +76,26 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// Users: register (для user)
+// Users register
 app.post('/api/users', async (req, res) => {
   const { phone, password, email } = req.body;
   try {
     const userRole = await pool.query('SELECT ID_role FROM roles WHERE role_name = $1', ['user']);
     const hashedPass = await bcrypt.hash(password, 10);
-    const result = await pool.query(
-      'INSERT INTO users (role_id, phone, password, email) VALUES ($1, $2, $3, $4) RETURNING *',
+    const newUser = await pool.query(
+      'INSERT INTO users (role_id, phone, password, email) VALUES ($1, $2, $3, $4) RETURNING id_users',
       [userRole.rows[0].id_role, phone, hashedPass, email]
     );
-    res.json(result.rows[0]);
+    res.json(newUser.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: 'Error creating user' });
+    res.status(500).json({ error: 'Error registering: ' + err.message });
   }
 });
 
-// Новый endpoint для списка пользователей (для админа)
+// Get users
 app.get('/api/users', async (req, res) => {
   try {
-    const result = await pool.query('SELECT ID_users as id, email FROM users WHERE role_id = (SELECT ID_role FROM roles WHERE role_name = \'user\')');
+    const result = await pool.query('SELECT u.*, r.role_name FROM users u JOIN roles r ON u.role_id = r.ID_role');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Error fetching users' });
@@ -90,10 +106,10 @@ app.get('/api/users', async (req, res) => {
 app.get('/api/products', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT p.*, c.category_name, d.discount_value 
-      FROM products p 
-      JOIN categories c ON p.category_id = c.ID_category 
-      JOIN discounts d ON p.discount_id = d.ID_discount
+      SELECT p.*, c.category_name, d.discount_name, d.discount_value
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.ID_category
+      LEFT JOIN discounts d ON p.discount_id = d.ID_discount
     `);
     res.json(result.rows);
   } catch (err) {
@@ -104,13 +120,13 @@ app.get('/api/products', async (req, res) => {
 app.post('/api/products', async (req, res) => {
   const { discount_id, category_id, product_name, price, weight, picture_url, description } = req.body;
   try {
-    const result = await pool.query(
+    const newProd = await pool.query(
       'INSERT INTO products (discount_id, category_id, product_name, price, weight, picture_url, description) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [discount_id, category_id, product_name, price, weight, picture_url, description]
+      [discount_id || null, category_id || null, product_name, price, weight, picture_url, description]
     );
-    res.json(result.rows[0]);
+    res.json(newProd.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: 'Error creating product' });
+    res.status(500).json({ error: 'Error creating product: ' + err.message });
   }
 });
 
@@ -118,23 +134,25 @@ app.put('/api/products/:id', async (req, res) => {
   const { id } = req.params;
   const { discount_id, category_id, product_name, price, weight, picture_url, description } = req.body;
   try {
-    const result = await pool.query(
-      'UPDATE products SET discount_id=$1, category_id=$2, product_name=$3, price=$4, weight=$5, picture_url=$6, description=$7 WHERE ID_products=$8 RETURNING *',
-      [discount_id, category_id, product_name, price, weight, picture_url, description, id]
+    const updated = await pool.query(
+      'UPDATE products SET discount_id = $1, category_id = $2, product_name = $3, price = $4, weight = $5, picture_url = $6, description = $7 WHERE ID_products = $8 RETURNING *',
+      [discount_id || null, category_id || null, product_name, price, weight, picture_url, description, id]
     );
-    res.json(result.rows[0]);
+    res.json(updated.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: 'Error updating product' });
+    res.status(500).json({ error: 'Error updating product: ' + err.message });
   }
 });
 
 app.delete('/api/products/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    await pool.query('DELETE FROM products WHERE ID_products=$1', [id]);
+    // Сначала удаляем связанные записи в cart
+    await pool.query('DELETE FROM cart WHERE products_id = $1', [id]);
+    await pool.query('DELETE FROM products WHERE ID_products = $1', [id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Error deleting product' });
+    res.status(500).json({ error: 'Error deleting product: ' + err.message });
   }
 });
 
@@ -151,8 +169,8 @@ app.get('/api/categories', async (req, res) => {
 app.post('/api/categories', async (req, res) => {
   const { category_name } = req.body;
   try {
-    const result = await pool.query('INSERT INTO categories (category_name) VALUES ($1) RETURNING *', [category_name]);
-    res.json(result.rows[0]);
+    const newCat = await pool.query('INSERT INTO categories (category_name) VALUES ($1) RETURNING *', [category_name]);
+    res.json(newCat.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Error creating category' });
   }
@@ -162,8 +180,8 @@ app.put('/api/categories/:id', async (req, res) => {
   const { id } = req.params;
   const { category_name } = req.body;
   try {
-    const result = await pool.query('UPDATE categories SET category_name=$1 WHERE ID_category=$2 RETURNING *', [category_name, id]);
-    res.json(result.rows[0]);
+    const updated = await pool.query('UPDATE categories SET category_name = $1 WHERE ID_category = $2 RETURNING *', [category_name, id]);
+    res.json(updated.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Error updating category' });
   }
@@ -172,21 +190,19 @@ app.put('/api/categories/:id', async (req, res) => {
 app.delete('/api/categories/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    await pool.query('DELETE FROM categories WHERE ID_category=$1', [id]);
+    // Сначала разрываем ссылки в products
+    await pool.query('UPDATE products SET category_id = NULL WHERE category_id = $1', [id]);
+    await pool.query('DELETE FROM categories WHERE ID_category = $1', [id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Error deleting category' });
+    res.status(500).json({ error: 'Error deleting category: ' + err.message });
   }
 });
 
-// Discounts CRUD (админ назначает на user или товар)
+// Discounts CRUD
 app.get('/api/discounts', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT d.*, u.email 
-      FROM discounts d 
-      JOIN users u ON d.user_id = u.ID_users
-    `);
+    const result = await pool.query('SELECT d.*, u.email FROM discounts d LEFT JOIN users u ON d.user_id = u.id_users');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Error fetching discounts' });
@@ -196,8 +212,11 @@ app.get('/api/discounts', async (req, res) => {
 app.post('/api/discounts', async (req, res) => {
   const { discount_name, discount_value, user_id } = req.body;
   try {
-    const result = await pool.query('INSERT INTO discounts (discount_name, discount_value, user_id) VALUES ($1, $2, $3) RETURNING *', [discount_name, discount_value, user_id]);
-    res.json(result.rows[0]);
+    const newDisc = await pool.query(
+      'INSERT INTO discounts (discount_name, discount_value, user_id) VALUES ($1, $2, $3) RETURNING *',
+      [discount_name, discount_value, user_id || null]
+    );
+    res.json(newDisc.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Error creating discount' });
   }
@@ -207,8 +226,11 @@ app.put('/api/discounts/:id', async (req, res) => {
   const { id } = req.params;
   const { discount_name, discount_value, user_id } = req.body;
   try {
-    const result = await pool.query('UPDATE discounts SET discount_name=$1, discount_value=$2, user_id=$3 WHERE ID_discount=$4 RETURNING *', [discount_name, discount_value, user_id, id]);
-    res.json(result.rows[0]);
+    const updated = await pool.query(
+      'UPDATE discounts SET discount_name = $1, discount_value = $2, user_id = $3 WHERE ID_discount = $4 RETURNING *',
+      [discount_name, discount_value, user_id || null, id]
+    );
+    res.json(updated.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Error updating discount' });
   }
@@ -217,67 +239,50 @@ app.put('/api/discounts/:id', async (req, res) => {
 app.delete('/api/discounts/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    await pool.query('DELETE FROM discounts WHERE ID_discount=$1', [id]);
+    // Сначала разрываем ссылки в products
+    await pool.query('UPDATE products SET discount_id = NULL WHERE discount_id = $1', [id]);
+    await pool.query('DELETE FROM discounts WHERE ID_discount = $1', [id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Error deleting discount' });
+    res.status(500).json({ error: 'Error deleting discount: ' + err.message });
   }
 });
 
-// Orders/Cart (для корзины пользователя)
+// Orders
 app.post('/api/orders', async (req, res) => {
-  const { user_id, items, address, payment_type } = req.body; // Добавил address и payment_type опционально
+  const { user_id, items } = req.body;
   try {
-    // Получить последний order или создать новый
-    let order = await pool.query('SELECT * FROM orders WHERE user_id = $1 ORDER BY orders_date DESC LIMIT 1', [user_id]);
-    if (order.rows.length === 0) {
-      order = await pool.query(
-        'INSERT INTO orders (user_id, orders_date, total_amount, address, payment_type) VALUES ($1, NOW(), 0, $2, $3) RETURNING *',
-        [user_id, address || null, payment_type || null]
-      );
-    } else {
-      order = { rows: [order.rows[0]] };
-    }
-    const orders_id = order.rows[0].id_orders;
-    let total = order.rows[0].total_amount;
+    const orderRes = await pool.query(
+      'INSERT INTO orders (user_id, orders_date, total_amount) VALUES ($1, NOW(), 0) RETURNING ID_orders',
+      [user_id]
+    );
+    const orders_id = orderRes.rows[0].id_orders;
 
     for (const item of items) {
-      const existingCart = await pool.query(
-        'SELECT * FROM cart WHERE orders_id = $1 AND products_id = $2',
-        [orders_id, item.product_id]
+      await pool.query(
+        'INSERT INTO cart (orders_id, products_id, quantity) VALUES ($1, $2, $3)',
+        [orders_id, item.product_id, item.quantity || 1]
       );
-      let priceAddition = 0;
-      if (existingCart.rows.length > 0) {
-        // Update quantity
-        const newQuantity = existingCart.rows[0].quantity + item.quantity;
-        await pool.query('UPDATE cart SET quantity = $1 WHERE ID_cart = $2', [newQuantity, existingCart.rows[0].id_cart]);
-        priceAddition = (await pool.query('SELECT price FROM products WHERE ID_products=$1', [item.product_id])).rows[0].price * item.quantity;
-      } else {
-        // Insert new
-        await pool.query('INSERT INTO cart (orders_id, products_id, quantity) VALUES ($1, $2, $3)', [orders_id, item.product_id, item.quantity]);
-        priceAddition = (await pool.query('SELECT price FROM products WHERE ID_products=$1', [item.product_id])).rows[0].price * item.quantity;
-      }
-      total += priceAddition;
     }
-    await pool.query('UPDATE orders SET total_amount = $1 WHERE ID_orders = $2', [total, orders_id]);
-    res.json(order.rows[0]);
+    await updateOrderTotal(orders_id);
+    res.json({ id_orders: orders_id });
   } catch (err) {
-    res.status(500).json({ error: 'Error creating/updating order' });
+    res.status(500).json({ error: 'Error creating order: ' + err.message });
   }
 });
 
-// Новый PUT для обновления заказа (оформление)
 app.put('/api/orders/:id', async (req, res) => {
   const { id } = req.params;
   const { address, payment_type } = req.body;
   try {
-    const orderCheck = await pool.query('SELECT * FROM orders WHERE ID_orders = $1', [id]);
-    if (orderCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-    const order = await pool.query('UPDATE orders SET address = $1, payment_type = $2 WHERE ID_orders = $3 RETURNING *', [address, payment_type, id]);
-    // Создать payment
-    await pool.query('INSERT INTO payments (orders_id, amount, payment_date) VALUES ($1, $2, NOW())', [id, order.rows[0].total_amount]);
+    const order = await pool.query(
+      'UPDATE orders SET address = $1, payment_type = $2 WHERE ID_orders = $3 RETURNING *',
+      [address, payment_type, id]
+    );
+    await pool.query(
+      'INSERT INTO payments (orders_id, amount, payment_date) VALUES ($1, $2, NOW())',
+      [id, order.rows[0].total_amount]
+    );
     res.json(order.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Error updating order: ' + err.message });
@@ -292,7 +297,7 @@ app.get('/api/orders/:user_id', async (req, res) => {
       FROM orders o 
       JOIN cart c ON o.ID_orders = c.orders_id 
       JOIN products p ON c.products_id = p.ID_products
-      JOIN discounts d ON p.discount_id = d.ID_discount
+      LEFT JOIN discounts d ON p.discount_id = d.ID_discount
       LEFT JOIN payments py ON o.ID_orders = py.orders_id
       WHERE o.user_id = $1
     `, [user_id]);
@@ -302,23 +307,71 @@ app.get('/api/orders/:user_id', async (req, res) => {
   }
 });
 
-// Новый endpoint для удаления из корзины
+// Cart operations with checks
+app.post('/api/cart', async (req, res) => {
+  const { orders_id, products_id, quantity } = req.body;
+  try {
+    // Check if order completed
+    const paymentCheck = await pool.query('SELECT * FROM payments WHERE orders_id = $1', [orders_id]);
+    if (paymentCheck.rows.length > 0) {
+      return res.status(403).json({ error: 'Cannot modify completed order' });
+    }
+
+    const existing = await pool.query('SELECT * FROM cart WHERE orders_id = $1 AND products_id = $2', [orders_id, products_id]);
+    let newCart;
+    if (existing.rows.length > 0) {
+      newCart = await pool.query(
+        'UPDATE cart SET quantity = quantity + $1 WHERE ID_cart = $2 RETURNING *',
+        [quantity, existing.rows[0].id_cart]
+      );
+    } else {
+      newCart = await pool.query(
+        'INSERT INTO cart (orders_id, products_id, quantity) VALUES ($1, $2, $3) RETURNING *',
+        [orders_id, products_id, quantity]
+      );
+    }
+    await updateOrderTotal(orders_id);
+    res.json(newCart.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Error adding to cart: ' + err.message });
+  }
+});
+
 app.delete('/api/cart/:cart_id', async (req, res) => {
   const { cart_id } = req.params;
   try {
+    const orderRes = await pool.query('SELECT orders_id FROM cart WHERE ID_cart = $1', [cart_id]);
+    const orders_id = orderRes.rows[0]?.orders_id;
+    if (!orders_id) return res.status(404).json({ error: 'Cart item not found' });
+
+    const paymentCheck = await pool.query('SELECT * FROM payments WHERE orders_id = $1', [orders_id]);
+    if (paymentCheck.rows.length > 0) {
+      return res.status(403).json({ error: 'Cannot modify completed order' });
+    }
+
     await pool.query('DELETE FROM cart WHERE ID_cart = $1', [cart_id]);
+    await updateOrderTotal(orders_id);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Error deleting cart item' });
   }
 });
 
-// Новый PUT для обновления quantity
 app.put('/api/cart/:cart_id', async (req, res) => {
   const { cart_id } = req.params;
   const { quantity } = req.body;
   try {
+    const orderRes = await pool.query('SELECT orders_id FROM cart WHERE ID_cart = $1', [cart_id]);
+    const orders_id = orderRes.rows[0]?.orders_id;
+    if (!orders_id) return res.status(404).json({ error: 'Cart item not found' });
+
+    const paymentCheck = await pool.query('SELECT * FROM payments WHERE orders_id = $1', [orders_id]);
+    if (paymentCheck.rows.length > 0) {
+      return res.status(403).json({ error: 'Cannot modify completed order' });
+    }
+
     await pool.query('UPDATE cart SET quantity = $1 WHERE ID_cart = $2', [quantity, cart_id]);
+    await updateOrderTotal(orders_id);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Error updating cart' });

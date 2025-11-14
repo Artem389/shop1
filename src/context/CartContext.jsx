@@ -1,6 +1,6 @@
 import { createContext, useReducer, useContext } from 'react';
-import { createOrder, getOrders, deleteCartItem, updateCartQuantity } from '../api/orders';
-import { useAuth } from './AuthContext'; // Для проверки auth
+import { createOrder, getOrders, deleteCartItem, updateCartQuantity, addToCart } from '../api/orders';
+import { useAuth } from './AuthContext';
 
 const CartContext = createContext();
 
@@ -12,33 +12,8 @@ const initialState = {
 
 function cartReducer(state, action) {
   switch (action.type) {
-    case 'ADD_ITEM':
-      const existingIndex = state.items.findIndex(i => i.product_id === action.payload.product_id);
-      if (existingIndex !== -1) {
-        const updatedItems = [...state.items];
-        updatedItems[existingIndex].quantity += action.payload.quantity;
-        return { ...state, items: updatedItems };
-      }
-      return { ...state, items: [...state.items, action.payload] };
-    case 'REMOVE_ITEM':
-      return { ...state, items: state.items.filter(item => item.cart_id !== action.payload) };
-    case 'UPDATE_QUANTITY':
-      return { ...state, items: state.items.map(item => 
-        item.cart_id === action.payload.cart_id ? { ...item, quantity: action.payload.quantity } : item
-      ) };
     case 'LOAD_CART':
-      // Аггрегируем по product_id
-      const aggregated = action.payload.reduce((acc, item) => {
-        const existing = acc.find(i => i.product_id === item.product_id);
-        if (existing) {
-          existing.quantity += item.quantity;
-          existing.cart_id = item.cart_id; // Последний cart_id для удаления/обновления
-        } else {
-          acc.push({ ...item });
-        }
-        return acc;
-      }, []);
-      return { ...state, items: aggregated, loading: false };
+      return { ...state, items: action.payload, loading: false };
     case 'SET_LOADING':
       return { ...state, loading: true };
     case 'SET_ERROR':
@@ -53,41 +28,65 @@ export function CartProvider({ children }) {
   const { user } = useAuth();
 
   const loadCart = async () => {
-    if (!user) return dispatch({ type: 'SET_ERROR', payload: 'Авторизуйтесь для просмотра корзины' });
+    if (!user) {
+      dispatch({ type: 'SET_ERROR', payload: 'Авторизуйтесь для просмотра корзины' });
+      return;
+    }
     dispatch({ type: 'SET_LOADING' });
     try {
       const orders = await getOrders(user.id);
-      dispatch({ type: 'LOAD_CART', payload: orders });
+      const cartItems = orders.filter(o => !o.payment_date);
+      dispatch({ type: 'LOAD_CART', payload: cartItems });
     } catch (err) {
       dispatch({ type: 'SET_ERROR', payload: err.message });
     }
   };
 
   const addItem = async (item) => {
-    if (!user) return dispatch({ type: 'SET_ERROR', payload: 'Авторизуйтесь для добавления в корзину' });
-    await createOrder(user.id, [{ product_id: item.id, quantity: 1 }]);
-    dispatch({ type: 'ADD_ITEM', payload: { ...item, product_id: item.id, quantity: 1 } });
-    loadCart(); // Перезагрузить для синхронизации
+    if (!user) {
+      dispatch({ type: 'SET_ERROR', payload: 'Авторизуйтесь для добавления в корзину' });
+      return;
+    }
+    try {
+      let orders_id = state.items[0]?.id_orders;
+      if (!orders_id) {
+        const newOrder = await createOrder(user.id, [{ product_id: item.id, quantity: 1 }]);
+        orders_id = newOrder.id_orders;
+      } else {
+        await addToCart(orders_id, item.id, 1);
+      }
+      await loadCart();
+    } catch (err) {
+      dispatch({ type: 'SET_ERROR', payload: err.message });
+    }
   };
 
-  const removeItem = async (cart_id, currentQuantity) => {
+  const removeItem = async (cart_id) => {
     if (!user) return;
     try {
-      if (currentQuantity > 1) {
-        const newQuantity = currentQuantity - 1;
-        await updateCartQuantity(cart_id, newQuantity);
-        dispatch({ type: 'UPDATE_QUANTITY', payload: { cart_id, quantity: newQuantity } });
-      } else {
+      await deleteCartItem(cart_id);
+      await loadCart();
+    } catch (err) {
+      dispatch({ type: 'SET_ERROR', payload: err.message });
+    }
+  };
+
+  const updateQuantity = async (cart_id, newQuantity) => {
+    if (!user) return;
+    try {
+      if (newQuantity <= 0) {
         await deleteCartItem(cart_id);
-        dispatch({ type: 'REMOVE_ITEM', payload: cart_id });
+      } else {
+        await updateCartQuantity(cart_id, newQuantity);
       }
+      await loadCart();
     } catch (err) {
       dispatch({ type: 'SET_ERROR', payload: err.message });
     }
   };
 
   return (
-    <CartContext.Provider value={{ ...state, addItem, removeItem, loadCart }}>
+    <CartContext.Provider value={{ ...state, addItem, removeItem, updateQuantity, loadCart }}>
       {children}
     </CartContext.Provider>
   );

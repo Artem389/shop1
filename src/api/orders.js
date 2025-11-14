@@ -41,3 +41,13 @@ export const updateCartQuantity = async (cart_id, quantity) => {
   if (!res.ok) throw new Error('Error updating cart quantity');
   return res.json();
 };
+
+export const addToCart = async (orders_id, product_id, quantity) => {
+  const res = await fetch(`${API_URL}/cart`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orders_id, products_id: product_id, quantity }),
+  });
+  if (!res.ok) throw new Error('Error adding to cart');
+  return res.json();
+};

@@ -11,19 +11,18 @@ export default function Checkout() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Предполагаем, что текущий order_id - первый из items (все в одном order)
-  const orderId = items.length > 0 ? items[0].id_orders : null;
-
-  if (!orderId) {
+  if (items.length === 0) {
     return <p>Корзина пуста. Вернитесь в <a href="/cart">корзину</a>.</p>;
   }
+
+  const orderId = items[0].id_orders;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await updateOrder(orderId, address, paymentType);
       alert('Заказ оформлен! Вернитесь в личный кабинет.');
-      loadCart(); // Обновить корзину (очистить?)
+      await loadCart(); // Очистить корзину (теперь order completed)
       navigate('/profile');
     } catch (err) {
       alert('Ошибка: ' + err.message);
