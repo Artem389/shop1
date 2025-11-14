@@ -49,11 +49,18 @@ export default function AdminPanel() {
   const handleProductSubmit = async (e) => {
     e.preventDefault();
     try {
+      const data = {
+        ...formProduct,
+        discount_id: formProduct.discount_id ? parseInt(formProduct.discount_id) : null,
+        category_id: parseInt(formProduct.category_id),
+        price: parseInt(formProduct.price),
+        weight: parseInt(formProduct.weight)
+      };
       if (editingProdId) {
-        const updated = await updateProduct(editingProdId, formProduct);
+        const updated = await updateProduct(editingProdId, data);
         setProducts(prev => prev.map(p => p.id_products === editingProdId ? updated : p));
       } else {
-        const newProd = await createProduct(formProduct);
+        const newProd = await createProduct(data);
         setProducts([...products, newProd]);
       }
       setFormProduct({ discount_id: '', category_id: '', product_name: '', price: '', weight: '', picture_url: '', description: '' });
@@ -121,11 +128,16 @@ export default function AdminPanel() {
   const handleDiscountSubmit = async (e) => {
     e.preventDefault();
     try {
+      const data = {
+        ...formDiscount,
+        discount_value: parseInt(formDiscount.discount_value),
+        user_id: formDiscount.user_id ? parseInt(formDiscount.user_id) : null
+      };
       if (editingDiscId) {
-        const updated = await updateDiscount(editingDiscId, formDiscount);
+        const updated = await updateDiscount(editingDiscId, data);
         setDiscounts(prev => prev.map(d => d.id_discount === editingDiscId ? updated : d));
       } else {
-        const newDisc = await createDiscount(formDiscount);
+        const newDisc = await createDiscount(data);
         setDiscounts([...discounts, newDisc]);
       }
       setFormDiscount({ discount_name: '', discount_value: '', user_id: '' });
